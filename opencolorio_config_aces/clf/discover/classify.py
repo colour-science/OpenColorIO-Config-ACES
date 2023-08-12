@@ -475,6 +475,8 @@ class CLFTransform:
         *CLF* transform family, e.g. *aces*
     genus : unicode, optional
         *CLF* transform genus, e.g. *undefined*
+    siblings : array_like, optional
+        *CLF* transform siblings, e.g. inverse transform.
 
     Attributes
     ----------
@@ -497,7 +499,10 @@ class CLFTransform:
     __ne__
     """
 
-    def __init__(self, path, family=None, genus=None):
+    def __init__(self, path, family=None, genus=None, siblings=None):
+        if siblings is None:
+            siblings = []
+
         self._path = os.path.abspath(os.path.normpath(path))
 
         self._code = None
@@ -510,6 +515,7 @@ class CLFTransform:
 
         self._family = family
         self._genus = genus
+        self._siblings = siblings
 
         self._parse()
 
@@ -691,6 +697,24 @@ TRANSFORM_FAMILIES_CLF` attribute dictionary.
         """
 
         return self._genus
+
+    @property
+    def siblings(self):
+        """
+        Getter property for the *CLF* transform siblings, e.g. inverse
+        transform.
+
+        Returns
+        -------
+        unicode
+            *CLF* transform siblings.
+
+        Notes
+        -----
+        -   This property is read only.
+        """
+
+        return self._siblings
 
     def __getattr__(self, item):
         """

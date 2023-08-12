@@ -12,6 +12,7 @@ transforms discovery and classification:
 -   :func:`opencolorio_config_aces.unclassify_ctl_transforms`
 -   :func:`opencolorio_config_aces.filter_ctl_transforms`
 -   :func:`opencolorio_config_aces.print_aces_taxonomy`
+-   :func:`opencolorio_config_aces.generate_amf_relations`
 """
 
 import itertools
@@ -62,6 +63,8 @@ __all__ = [
     "unclassify_ctl_transforms",
     "filter_ctl_transforms",
     "print_aces_taxonomy",
+    "RELATIONS_AMF_IMPLICIT",
+    "generate_amf_relations",
 ]
 
 logger = logging.getLogger(__name__)
@@ -698,9 +701,11 @@ class CTLTransform:
     path : unicode
         *ACES* *CTL* transform path.
     family : unicode, optional
-        *ACES* *CTL* transform family, e.g. *output_transform*
+        *ACES* *CTL* transform family, e.g. *output_transform*.
     genus : unicode, optional
-        *ACES* *CTL* transform genus, e.g. *dcdm*
+        *ACES* *CTL* transform genus, e.g. *dcdm*.
+    siblings : array_like, optional
+        *ACES* *CTL* transform siblings, e.g. inverse transform.
 
     Attributes
     ----------
@@ -722,7 +727,10 @@ class CTLTransform:
     __ne__
     """
 
-    def __init__(self, path, family=None, genus=None):
+    def __init__(self, path, family=None, genus=None, siblings=None):
+        if siblings is None:
+            siblings = []
+
         self._path = os.path.abspath(os.path.normpath(path))
 
         self._code = None
@@ -732,6 +740,7 @@ class CTLTransform:
 
         self._family = family
         self._genus = genus
+        self._siblings = siblings
 
         self._parse()
 
@@ -860,6 +869,24 @@ TRANSFORM_FAMILIES_CTL` attribute dictionary.
         """
 
         return self._genus
+
+    @property
+    def siblings(self):
+        """
+        Getter property for the *ACES* *CTL* transform siblings, e.g. inverse
+        transform.
+
+        Returns
+        -------
+        unicode
+            *ACES* *CTL* transform siblings.
+
+        Notes
+        -----
+        -   This property is read only.
+        """
+
+        return self._siblings
 
     def __getattr__(self, item):
         """
@@ -1311,6 +1338,9 @@ CTLTransform('csc...ACEScc...ACEScsc.Academy.ACEScc_to_ACES.ctl')'))]
                     pairs["inverse_transform"], family, genus
                 )
 
+                forward_ctl_transform.siblings.append(inverse_ctl_transform)
+                inverse_ctl_transform.siblings.append(forward_ctl_transform)
+
                 ctl_transform = CTLTransformPair(
                     forward_ctl_transform, inverse_ctl_transform
                 )
@@ -1328,7 +1358,7 @@ CTLTransform('csc...ACEScc...ACEScsc.Academy.ACEScc_to_ACES.ctl')'))]
 
 def unclassify_ctl_transforms(classified_ctl_transforms):
     """
-    Unclassifie given *ACES* *CTL* transforms.
+    Unclassify given *ACES* *CTL* transforms.
 
     Parameters
     ----------
@@ -1464,6 +1494,119 @@ reference.ROOT_TRANSFORMS_CTL` attribute using the
                         ctl_transform.forward_transform.source,
                         ctl_transform.forward_transform.target,
                     )
+
+
+RELATIONS_AMF_IMPLICIT = {
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.BMDFilm_WideGamut_Gen5_to_ACES.a1.v1": [
+        "urn:ampas:aces:transformId:v1.5:"
+        "IDT.BlackmagicDesign.BMDFilm_WideGamut_Gen5.a1.v1"
+    ],
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.LogC_EI800_AWG_to_ACES.a1.1.0": [
+        "urn:ampas:aces:transformId:v1.5:IDT.ARRI.Alexa-v3-logC-EI800.a1.v2"
+    ],
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.SLog3_SGamut3_to_ACES.a1.1.0": [
+        "urn:ampas:aces:transformId:v1.5:IDT.Sony.SLog3_SGamut3.a1.v1"
+    ],
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.SLog3_SGamut3Cine_to_ACES.a1.1.0": [
+        "urn:ampas:aces:transformId:v1.5:IDT.Sony.SLog3_SGamut3Cine.a1.v1"
+    ],
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.SLog3_Venice_SGamut3_to_ACES.a1.1.0": [
+        "urn:ampas:aces:transformId:v1.5:"
+        "IDT.Sony.Venice_SLog3_SGamut3.a1.v1"
+    ],
+    "urn:ampas:aces:transformId:v1.5:"
+    "ACEScsc.Academy.SLog3_Venice_SGamut3Cine_to_ACES.a1.1.0": [
+        "urn:ampas:aces:transformId:v1.5:"
+        "IDT.Sony.Venice_SLog3_SGamut3Cine.a1.v1"
+    ],
+}
+"""
+Implicit *ACES* *AMF* relations.
+
+Notes
+-----
+Those are currently hardcoded as there is no trivial way to build a
+relationship between an *ACES* *CSC* and an *ACES* *IDT*.
+
+RELATIONS_AMF_IMPLICIT : dict
+"""
+
+
+def generate_amf_relations(ctl_transforms):
+    """
+    Generate the *ACES* *AMF* relations from given *ACES* *CTL* transforms.
+
+    Parameters
+    ----------
+    ctl_transforms : dict or list
+        *ACES* *CTL* transforms as returned by
+        :func:`opencolorio_config_aces.classify_aces_ctl_transforms` or
+        :func:`opencolorio_config_aces.unclassify_aces_ctl_transforms`
+        definitions.
+
+    Returns
+    -------
+    defaultdict
+        *ACES* *AMF* relations.
+    """
+    mapping = defaultdict(list)
+
+    if isinstance(ctl_transforms, Mapping):
+        ctl_transforms = unclassify_ctl_transforms(ctl_transforms)
+
+    # Checking that the explicit "ACEStransformID" do exist.
+    for aces_transform_id, relations in RELATIONS_AMF_IMPLICIT.items():
+        explicit_aces_transform_ids = [aces_transform_id]
+        explicit_aces_transform_ids.extend(relations)
+
+        for explicit_aces_transform_id in explicit_aces_transform_ids:
+            filtered_ctl_transforms = filter_ctl_transforms(
+                ctl_transforms,
+                [
+                    lambda x, y=explicit_aces_transform_id: (
+                        x.aces_transform_id.aces_transform_id == y
+                    )
+                ],
+            )
+
+            ctl_transform = next(iter(filtered_ctl_transforms), None)
+
+            attest(
+                ctl_transform is not None,
+                (
+                    f'"aces-dev" has no transform with '
+                    f'"{explicit_aces_transform_id}" "ACEStransformID!'
+                ),
+            )
+
+    for ctl_transform in ctl_transforms:
+        aces_transform_id = ctl_transform.aces_transform_id.aces_transform_id
+
+        for siblings in [
+            ctl_transform.siblings
+            for ctl_transform in filter_ctl_transforms(
+                ctl_transforms,
+                [
+                    lambda x, y=aces_transform_id: (
+                        x.aces_transform_id.aces_transform_id == y
+                    )
+                ],
+            )
+        ]:
+            for sibling in siblings:
+                mapping[aces_transform_id].append(
+                    sibling.aces_transform_id.aces_transform_id
+                )
+
+    for aces_transform_id, relations in RELATIONS_AMF_IMPLICIT.items():
+        mapping[aces_transform_id].extend(relations)
+
+    return mapping
 
 
 if __name__ == "__main__":

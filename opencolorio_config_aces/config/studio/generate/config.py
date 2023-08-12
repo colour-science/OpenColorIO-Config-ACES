@@ -19,7 +19,7 @@ from opencolorio_config_aces.config.generation import (
     generate_config,
 )
 from opencolorio_config_aces.config.reference import (
-    ColorspaceDescriptionStyle,
+    DescriptionStyle,
 )
 from opencolorio_config_aces.config.cg import (
     generate_config_cg,
@@ -172,7 +172,7 @@ def generate_config_studio(
     config_name=None,
     profile_version=PROFILE_VERSION_DEFAULT,
     validate=True,
-    describe=ColorspaceDescriptionStyle.SHORT_UNION,
+    describe=DescriptionStyle.SHORT_UNION,
     config_mapping_file_path=PATH_TRANSFORMS_MAPPING_FILE_STUDIO,
     scheme="Modern 1",
     additional_data=False,
@@ -209,7 +209,7 @@ def generate_config_studio(
         Whether to validate the config.
     describe : int, optional
         Any value from the
-        :class:`opencolorio_config_aces.ColorspaceDescriptionStyle` enum.
+        :class:`opencolorio_config_aces.DescriptionStyle` enum.
     config_mapping_file_path : unicode, optional
         Path to the *CSV* mapping file used to describe the transforms mapping.
     scheme : str, optional
